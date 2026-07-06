@@ -1,0 +1,1372 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>NUMBER FRONT — 숫자 전선</title>
+<style>
+  :root{
+    --bg:#f3ead9;
+    --panel:#ece0c8;
+    --panel2:#e3d4b3;
+    --line:#c9b48c;
+    --text:#3b2f22;
+    --muted:#7a6a52;
+    --human-fill:#ffffff;
+    --human-border:#3b3b3b;
+    --human-accent:#4a4a4a;
+    --ai-fill:#ffd94a;
+    --ai-border:#7a5c00;
+    --ai-accent:#b8860b;
+    --gold:#c98a2b;
+    --minus:#c0392b;
+    --danger:#c0392b;
+    --ok:#3f8f5f;
+    font-family: Consolas, 'SFMono-Regular', Menlo, monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);height:100%;overflow-x:hidden;}
+  body{
+    display:flex;flex-direction:column;align-items:center;
+    min-height:100%;
+    padding:14px 10px 40px;
+    background:radial-gradient(circle at 50% -10%, #faf3e2 0%, var(--bg) 55%);
+  }
+  body.center-mode{justify-content:center;min-height:100vh;}
+  h1{
+    font-family: 'Trebuchet MS', 'Segoe UI', Verdana, sans-serif;
+    font-weight:900;letter-spacing:4px;font-size:clamp(22px,5vw,34px);
+    margin:6px 0 2px;color:var(--text);text-shadow:0 0 16px rgba(201,138,43,0.3);
+  }
+  .subtitle{color:var(--muted);font-size:12px;letter-spacing:2px;margin-bottom:10px;text-transform:uppercase;}
+  .lang-switch{display:flex;gap:6px;margin-bottom:14px;}
+  .lang-btn{
+    padding:5px 12px;font-size:11px;border-radius:14px;background:var(--panel2);
+    border:1px solid var(--line);color:var(--muted);
+  }
+  .lang-btn.active{background:var(--gold);color:#fff8ec;border-color:var(--gold);font-weight:bold;}
+  .hidden{display:none !important;}
+  button{
+    font-family:inherit;cursor:pointer;border:none;border-radius:6px;
+    background:var(--panel2);color:var(--text);padding:10px 16px;font-size:14px;
+    border:1px solid var(--line);transition:all .15s;
+  }
+  button:hover:not(:disabled){background:#d9c79e;border-color:var(--gold);}
+  button:disabled{opacity:.35;cursor:not-allowed;}
+  button.primary{background:linear-gradient(135deg,var(--gold),#a8701a);color:#fff8ec;font-weight:bold;border:none;}
+  button.primary:hover:not(:disabled){filter:brightness(1.1);}
+
+  .screen{width:100%;max-width:520px;display:flex;flex-direction:column;align-items:center;}
+
+  .setup-tray{
+    display:flex;flex-wrap:wrap;gap:8px;justify-content:center;
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:12px;margin:10px 0;width:100%;min-height:64px;
+  }
+  .tray-piece{
+    width:42px;height:42px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+    background:var(--human-fill);border:2px solid var(--human-accent);color:var(--human-accent);font-weight:bold;font-size:16px;
+    cursor:pointer;user-select:none;
+  }
+  .tray-piece.selected{outline:3px solid var(--gold);transform:translateY(-3px);}
+  .tray-piece.mine{color:var(--danger);border-color:var(--danger);}
+  .tray-piece.king{color:var(--gold);border-color:var(--gold);}
+  .setup-controls{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;justify-content:center;}
+  .setup-hint{color:var(--muted);font-size:12px;text-align:center;margin:4px 0 10px;line-height:1.6;}
+
+  .game-wrap{display:flex;flex-direction:column;align-items:center;width:100%;}
+  .top-bar{
+    display:flex;justify-content:space-between;align-items:center;
+    width:min(92vw,460px);margin:6px 0;font-size:13px;color:var(--muted);
+  }
+  .side-label{display:flex;align-items:center;gap:6px;font-weight:bold;}
+  .dot{width:10px;height:10px;border-radius:50%;display:inline-block;}
+  .dot.human{background:var(--human-fill);border:1.5px solid var(--human-accent);}
+  .dot.ai{background:var(--ai-fill);border:1.5px solid var(--ai-accent);}
+  .timer{
+    font-size:20px;font-weight:bold;color:var(--gold);min-width:54px;text-align:center;
+    padding:4px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel);
+  }
+  .timer.low{color:var(--danger);animation:pulse 0.6s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+  .board-wrap{
+    position:relative;
+    width:min(92vw,340px);
+    aspect-ratio:6/9;
+    margin:4px auto;
+  }
+  .board{
+    position:absolute;inset:0;
+    display:grid;
+    grid-template-columns:repeat(6,1fr);
+    grid-template-rows:repeat(9,1fr);
+    gap:2px;
+    background:var(--line);
+    border:2px solid var(--line);
+    border-radius:8px;
+    overflow:hidden;
+  }
+  .minus-overlay{position:absolute;inset:0;pointer-events:none;z-index:5;}
+  .minus-line{
+    position:absolute;top:0;bottom:0;width:0;
+    border-left:2px dashed var(--minus);
+    display:flex;flex-direction:column;justify-content:space-around;align-items:center;
+    transform:translateX(-1px);
+  }
+  .minus-tick{
+    width:15px;height:15px;border-radius:50%;background:#fbe4de;
+    border:1.5px solid var(--minus);color:var(--minus);
+    font-size:10px;font-weight:bold;display:flex;align-items:center;justify-content:center;
+    transform:translateX(-50%);
+  }
+
+  .cell{
+    position:relative;background:var(--panel);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .cell.zone-human{background:#faf5ea;}
+  .cell.zone-ai{background:#faf0c9;}
+  .cell.zone-neutral{background:#f1e6d0;}
+  .cell.selectable{box-shadow:inset 0 0 0 2px var(--gold);cursor:pointer;}
+  .cell.selectable::before{
+    content:"";position:absolute;width:22%;height:22%;border-radius:50%;background:rgba(227,179,65,0.55);
+  }
+  .cell.selected-cell{box-shadow:inset 0 0 0 2px #fff;}
+  .cell.trace-human-from{box-shadow:inset 0 0 0 2px rgba(74,74,74,0.35);}
+  .cell.trace-human-to{box-shadow:inset 0 0 0 2px var(--human-accent);}
+  .cell.trace-ai-from{box-shadow:inset 0 0 0 2px rgba(184,134,11,0.35);}
+  .cell.trace-ai-to{box-shadow:inset 0 0 0 2px var(--ai-accent);}
+
+  .last-moves{width:min(92vw,460px);display:flex;flex-direction:column;gap:4px;margin:8px 0 2px;}
+  .last-move-line{
+    font-size:12px;background:var(--panel);border:1px solid var(--line);border-radius:6px;
+    padding:6px 10px;display:flex;align-items:center;gap:6px;
+  }
+  .last-move-line b{color:var(--text);}
+  .last-move-line.ai{color:var(--ai-accent);}
+  .last-move-line.human{color:var(--human-accent);}
+
+  .piece{
+    width:82%;height:82%;border-radius:8px;display:flex;align-items:center;justify-content:center;
+    font-weight:bold;font-size:clamp(11px,3.4vw,15px);user-select:none;position:relative;
+    transition:transform .15s;
+  }
+  .piece.owner-human{background:var(--human-fill);border:2px solid var(--human-accent);color:var(--human-border);}
+  .piece.owner-ai.revealed{background:var(--ai-fill);border:2px solid var(--ai-accent);color:var(--ai-border);}
+  .piece.owner-ai.hidden-face{background:#ddd0a8;border:2px solid #a8925f;color:#8a7648;}
+  .piece.owner-ai.hidden-face::after{content:"?";font-size:14px;}
+  .piece.mine.owner-human::after{content:"✦";}
+  .piece.king.owner-human::after{content:"♛";}
+  .piece.mine.owner-ai.revealed::after{content:"✦";}
+  .piece.king.owner-ai.revealed::after{content:"♛";}
+  .piece.clickable{cursor:pointer;}
+
+  .graveyard-row{display:flex;gap:10px;width:min(92vw,460px);margin-top:8px;}
+  .graveyard{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 8px;min-width:0;}
+  .graveyard-label{font-size:11px;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:5px;}
+  .graveyard-label b{color:var(--text);}
+  .graveyard-items{display:flex;flex-wrap:wrap;gap:4px;min-height:24px;}
+  .grave-piece{
+    width:22px;height:22px;border-radius:5px;display:flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:bold;flex-shrink:0;
+  }
+  .grave-piece.owner-human{background:var(--human-fill);border:1px solid var(--human-accent);color:var(--human-border);}
+  .grave-piece.owner-ai{background:var(--ai-fill);border:1px solid var(--ai-accent);color:var(--ai-border);}
+  .graveyard-empty{color:var(--muted);font-size:11px;opacity:.6;}
+
+  .log-panel{
+    width:min(92vw,460px);height:110px;overflow-y:auto;background:var(--panel);
+    border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--muted);
+    margin-top:8px;
+  }
+  .log-panel div{margin-bottom:3px;}
+  .log-panel div:first-child{color:var(--text);}
+
+  .overlay{
+    position:fixed;inset:0;background:rgba(3,5,9,0.78);display:flex;align-items:center;justify-content:center;
+    z-index:50;padding:16px;
+  }
+  .modal{
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px;max-width:380px;width:100%;
+    text-align:center;
+  }
+  .modal h2{margin:0 0 10px;font-size:18px;letter-spacing:1px;}
+  .modal p{color:var(--muted);font-size:13px;line-height:1.6;}
+  .modal .btn-row{display:flex;flex-direction:column;gap:8px;margin-top:14px;}
+  .help-body{text-align:left;font-size:13px;color:var(--muted);line-height:1.7;max-height:60vh;overflow-y:auto;}
+  .help-body h3{color:var(--text);margin:14px 0 4px;font-size:14px;}
+  .top-links{display:flex;gap:10px;margin-bottom:6px;}
+  .link-btn{background:none;border:none;color:var(--muted);font-size:12px;text-decoration:underline;cursor:pointer;padding:2px 4px;}
+  .link-btn:hover{color:var(--text);}
+</style>
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2557338953436433"
+     crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body class="center-mode">
+
+<h1>NUMBER FRONT</h1>
+<div class="subtitle" id="subtitle-text">숫자 전선 · 1P vs COM</div>
+<div class="lang-switch">
+  <button class="lang-btn active" id="lang-btn-ko">한국어</button>
+  <button class="lang-btn" id="lang-btn-en">English</button>
+</div>
+
+<div id="screen-mode" class="screen">
+  <div class="setup-hint">
+    누구와 대결하시겠어요?
+  </div>
+  <div class="setup-controls">
+    <button class="primary" id="btn-mode-ai">컴퓨터(AI)와 대결</button>
+    <button id="btn-mode-online">친구와 온라인 대전 (베타)</button>
+  </div>
+</div>
+
+<div id="screen-room" class="screen hidden">
+  <div class="setup-hint" id="room-hint">
+    방을 새로 만들거나, 친구가 보내준 코드로 참가하세요.
+  </div>
+  <div class="setup-controls">
+    <button class="primary" id="btn-room-create">방 만들기</button>
+  </div>
+  <div class="setup-controls">
+    <input id="room-code-input" placeholder="코드 입력 (예: AB3X9K)" maxlength="6"
+      style="text-transform:uppercase;padding:10px 14px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font-family:inherit;font-size:14px;width:180px;text-align:center;letter-spacing:2px;">
+    <button id="btn-room-join">코드로 참가하기</button>
+  </div>
+  <div id="room-status" style="color:var(--muted);font-size:13px;text-align:center;min-height:20px;"></div>
+  <div class="setup-controls">
+    <button id="btn-room-back">뒤로</button>
+  </div>
+</div>
+
+<div id="screen-title" class="screen hidden">
+  <div class="setup-hint" id="title-hint">
+    54칸 전장, 14개의 말. 상대의 왕을 잡거나 진영 끝까지 돌파하라.<br>
+    숫자의 합이 10 이상이면 큰 수가, 미만이면 작은 수가 이긴다.
+  </div>
+  <div class="setup-controls">
+    <button class="primary" id="btn-start">전투 준비</button>
+    <button id="btn-help-title">규칙 보기</button>
+  </div>
+</div>
+
+<div id="screen-setup" class="screen hidden">
+  <div class="setup-hint" id="setup-hint-text">
+    아래 말 목록에서 하나를 고른 뒤, 내 진영(하단 3줄)의 빈 칸을 눌러 배치하세요.<br>
+    배치된 말을 다시 누르면 목록으로 되돌릴 수 있습니다.
+  </div>
+  <div class="setup-controls">
+    <button id="btn-random">랜덤 배치</button>
+    <button id="btn-clear">초기화</button>
+    <button class="primary" id="btn-confirm" disabled>전투 시작 (0/14)</button>
+  </div>
+  <div class="board-wrap">
+    <div class="board" id="setup-board"></div>
+    <div class="minus-overlay" id="setup-minus-overlay"></div>
+  </div>
+  <div class="setup-tray" id="setup-tray"></div>
+</div>
+
+<div id="screen-game" class="screen hidden game-wrap">
+  <div class="top-bar">
+    <div class="side-label"><span class="dot ai"></span>COM <span id="ai-count" style="color:var(--muted)"></span></div>
+    <div class="timer" id="timer">60</div>
+    <div class="side-label"><span class="dot human"></span>YOU <span id="human-count" style="color:var(--muted)"></span></div>
+  </div>
+  <div class="board-wrap">
+    <div class="board" id="game-board"></div>
+    <div class="minus-overlay" id="game-minus-overlay"></div>
+  </div>
+  <div class="last-moves">
+    <div class="last-move-line ai" id="last-move-ai">상대 최근 이동: -</div>
+    <div class="last-move-line human" id="last-move-human">나의 최근 이동: -</div>
+  </div>
+  <div class="graveyard-row">
+    <div class="graveyard">
+      <div class="graveyard-label"><span id="grave-ai-label">제거된 상대 말</span><b id="ai-graveyard-count">0</b></div>
+      <div class="graveyard-items" id="ai-graveyard-items"></div>
+    </div>
+    <div class="graveyard">
+      <div class="graveyard-label"><span id="grave-human-label">제거된 내 말</span><b id="human-graveyard-count">0</b></div>
+      <div class="graveyard-items" id="human-graveyard-items"></div>
+    </div>
+  </div>
+  <div class="top-links">
+    <button class="link-btn" id="btn-help-game">규칙 보기</button>
+    <button class="link-btn" id="btn-restart">새 게임</button>
+  </div>
+  <div class="log-panel" id="log-panel"></div>
+</div>
+
+<div id="modal-firstturn" class="overlay hidden">
+  <div class="modal">
+    <h2 id="ft-title">누가 먼저 시작할까요?</h2>
+    <div class="btn-row">
+      <button class="primary" id="btn-first-human">내가 먼저 (선공)</button>
+      <button id="btn-first-ai">상대가 먼저 (후공)</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-end" class="overlay hidden">
+  <div class="modal">
+    <h2 id="end-title">게임 종료</h2>
+    <p id="end-desc"></p>
+    <div class="btn-row">
+      <button class="primary" id="btn-play-again">다시 하기</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-help" class="overlay hidden">
+  <div class="modal" style="max-width:440px;">
+    <h2 id="help-title" style="margin:0 0 10px;">숫자 전선 규칙</h2>
+    <div class="help-body" id="help-body"></div>
+    <div class="btn-row"><button class="primary" id="btn-close-help">닫기</button></div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+const ROWS=9, COLS=6;
+const HUMAN='human', AI='ai';
+const HUMAN_ZONE=[6,7,8];
+const AI_ZONE=[0,1,2];
+
+/* ---- Online friendly match (Supabase Realtime) ---- */
+const SUPABASE_URL = 'https://mqmvfhqgyzoowfwxdukm.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xbXZmaHFneXpvb3dmd3hkdWttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNDEyNTQsImV4cCI6MjA5ODgxNzI1NH0.jLfuwrTUD3O_IbTTgfCUsWC-9fSQYWRkOc5uPRM9d_E';
+let netEnabled=false;
+let netRole=null; // 'p1' (room creator) | 'p2' (joiner)
+let netChannel=null;
+let netRoomCode=null;
+let netReadySent=false;
+let netOpponentReadyBoard=null;
+let netGameStarted=false;
+let sbClient=null;
+const myClientId = 'c'+Math.random().toString(36).slice(2)+Date.now();
+
+function flipR(r){ return 8-r; }
+function flipC(c){ return 5-c; }
+
+function getSbClient(){
+  if(!sbClient && window.supabase){
+    sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+  return sbClient;
+}
+function randomRoomCode(){
+  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s='';
+  for(let i=0;i<6;i++) s+=chars[Math.floor(Math.random()*chars.length)];
+  return s;
+}
+function netSend(msg){
+  if(!netChannel) return;
+  msg.from = myClientId;
+  netChannel.send({type:'broadcast', event:'msg', payload:msg});
+}
+function setRoomStatus(text){
+  const el=document.getElementById('room-status');
+  if(el) el.textContent=text;
+}
+
+function createRoom(){
+  const client=getSbClient();
+  if(!client){ setRoomStatus('네트워크 라이브러리를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.'); return; }
+  netRole='p1';
+  netRoomCode=randomRoomCode();
+  netEnabled=true;
+  netChannel = client.channel('room-'+netRoomCode);
+  netChannel.on('broadcast', {event:'msg'}, ({payload})=>handleNetMessage(payload));
+  netChannel.subscribe((status)=>{
+    if(status==='SUBSCRIBED'){
+      setRoomStatus('방 코드: '+netRoomCode+'  — 친구에게 이 코드를 알려주세요. 친구가 참가하면 자동으로 시작됩니다. (대기 중...)');
+    }
+  });
+}
+function joinRoom(code){
+  const client=getSbClient();
+  if(!client){ setRoomStatus('네트워크 라이브러리를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.'); return; }
+  if(!code || code.length<4){ setRoomStatus('올바른 코드를 입력해주세요.'); return; }
+  netRole='p2';
+  netRoomCode=code.toUpperCase();
+  netEnabled=true;
+  netChannel = client.channel('room-'+netRoomCode);
+  netChannel.on('broadcast', {event:'msg'}, ({payload})=>handleNetMessage(payload));
+  netChannel.subscribe((status)=>{
+    if(status==='SUBSCRIBED'){
+      setRoomStatus('방에 접속했습니다. 상대를 기다리는 중...');
+      netSend({type:'join'});
+    }
+  });
+}
+
+function handleNetMessage(msg){
+  if(msg.from === myClientId) return;
+  if(msg.type==='join'){
+    setRoomStatus('상대가 접속했습니다! 배치 화면으로 이동합니다...');
+    netSend({type:'join_ack'});
+    setTimeout(()=>{ startSetup(); }, 400);
+    return;
+  }
+  if(msg.type==='join_ack'){
+    setRoomStatus('상대와 연결되었습니다! 배치 화면으로 이동합니다...');
+    setTimeout(()=>{ startSetup(); }, 400);
+    return;
+  }
+  if(msg.type==='ready'){
+    netOpponentReadyBoard = msg.board;
+    tryStartNetGame();
+    return;
+  }
+  if(msg.type==='start'){
+    if(netGameStarted) return;
+    netGameStarted=true;
+    beginGame(msg.firstTurn==='mine'? AI : HUMAN, netOpponentReadyBoard);
+    return;
+  }
+  if(msg.type==='move'){
+    const fr=flipR(msg.fromR), fc=flipC(msg.fromC), tr=flipR(msg.toR), tc=flipC(msg.toC);
+    const piece = board[fr] && board[fr][fc];
+    if(piece && piece.owner===AI && piece.alive){
+      doMove(piece, tr, tc);
+    }
+    return;
+  }
+  if(msg.type==='timeout'){
+    endGame(HUMAN, 'timeout_human'); // opponent timed out -> I win
+    return;
+  }
+  if(msg.type==='resign'){
+    endGame(HUMAN, 'no_moves_ai');
+    return;
+  }
+}
+
+function tryStartNetGame(){
+  if(!netReadySent || !netOpponentReadyBoard) return;
+  if(netRole==='p1'){
+    // host decides who goes first and shows the choice modal
+    showFirstTurnModalNet();
+  } else {
+    setRoomStatus('상대가 선공을 정하는 중입니다...');
+  }
+}
+
+let currentLang='ko';
+
+const I18N={
+  ko:{
+    subtitle:'숫자 전선 · 1P vs COM',
+    titleHint:'54칸 전장, 14개의 말. 상대의 왕을 잡거나 진영 끝까지 돌파하라.<br>숫자의 합이 10 이상이면 큰 수가, 미만이면 작은 수가 이긴다.',
+    btnPrepare:'전투 준비',
+    btnRules:'규칙 보기',
+    setupHint:'아래 말 목록에서 하나를 고른 뒤, 내 진영(하단 3줄)의 빈 칸을 눌러 배치하세요.<br>배치된 말을 다시 누르면 목록으로 되돌릴 수 있습니다.',
+    btnRandom:'랜덤 배치',
+    btnClear:'초기화',
+    btnConfirm:(n)=>`전투 시작 (${n}/14)`,
+    ftTitle:'누가 먼저 시작할까요?',
+    btnFirstHuman:'내가 먼저 (선공)',
+    btnFirstAI:'상대가 먼저 (후공)',
+    lastMoveAI:'상대 최근 이동:',
+    lastMoveHuman:'나의 최근 이동:',
+    noneYet:'아직 없음',
+    unknownPiece:'미확인 말',
+    graveAI:'제거된 상대 말',
+    graveHuman:'제거된 내 말',
+    graveEmpty:'없음',
+    btnNewGame:'새 게임',
+    endTitleWin:'승리!',
+    endTitleLose:'패배...',
+    btnPlayAgain:'다시 하기',
+    helpTitle:'숫자 전선 규칙',
+    btnClose:'닫기',
+    ownerYou:'나',
+    ownerCom:'COM',
+    msgStart:'전투 시작! 당신의 턴입니다.',
+    pieceMine:'지뢰',
+    pieceKing:'왕',
+    msgRemoved:(owner,label)=>`${owner}의 ${label} 제거됨`,
+    msgSurvive:(owner,label)=>`${owner}의 ${label} 생존`,
+    msgRevive:(owner,label)=>`${owner} 부활: ${label}이(가) 되살아났습니다`,
+    reasons:{
+      king_captured_human:'상대가 당신의 왕을 잡았습니다.',
+      king_captured_ai:'상대의 왕을 잡았습니다!',
+      wipeout_human:'당신의 말이 모두 전멸했습니다.',
+      wipeout_ai:'상대의 말을 모두 전멸시켰습니다!',
+      breakthrough:'왕이 상대 진영 끝줄까지 돌파했습니다!',
+      no_moves_ai:'상대가 더 이상 이동할 수 없습니다.',
+      no_moves_human:'이동 가능한 말이 없습니다.',
+      timeout_human:'제한시간 안에 말을 이동하지 못했습니다.'
+    },
+    helpHTML:`
+      <h3>목표</h3>
+      상대의 왕을 잡거나, 왕을 제외한 모든 말을 전멸시키거나, 내 왕이 상대 진영 맨 끝줄에 도달하면 승리합니다.
+      <h3>이동</h3>
+      말은 좌우로 1칸, 대각선 앞으로 1칸, 정면으로 1~2칸(점프 불가) 이동할 수 있습니다. 뒤로는 이동할 수 없고, 이미 말이 있는 칸에는 들어갈 수 없습니다. 지뢰는 이동할 수 없습니다.
+      <h3>대결</h3>
+      이동 후 상대 말과 상하좌우로 맞닿으면 즉시 대결이 벌어집니다. 두 수의 합이 10 미만이면 <b>낮은 수</b>가, 10 이상이면 <b>높은 수</b>가 승리합니다(단, 두 수가 같으면 둘 다 제거). 지뢰와 부딪히면 무조건 양쪽 모두 제거되며, 왕은 전투 능력이 없어 어떤 말과 부딪혀도 제거됩니다(왕 vs 왕은 무효).
+      <h3>마이너스 라인</h3>
+      보드에는 붉은 점선으로 표시된 두 개의 세로 경계선이 있습니다(왼쪽에서 2-3번째 칸 사이, 4-5번째 칸 사이). 이 경계선을 사이에 두고 <b>좌우로</b> 맞닿아 대결이 벌어지면, 합이 아니라 <b>큰 수에서 작은 수를 뺀 차이</b>로 승부를 가리되 <b>작은 수를 가진 쪽이 승리</b>합니다(큰 수가 패배). 위아래로 맞닿는 대결이나, 다른 위치에서의 좌우 대결에는 영향을 주지 않습니다. 그래서 맨 끝 줄(1열/6열)에 말을 붙여 정면으로만 전진시키면 마이너스 대결을 거의 피할 수 있습니다.
+      <h3>부활</h3>
+      왕이 아닌 말이 상대 진영 맨 끝줄까지 살아서 도달하면, 그 말은 사라지는 대신 지금까지 제거된 내 말 중 하나가 공개된 상태로 부활하여 내 진영 맨 끝줄에 배치됩니다.
+      <h3>제한시간</h3>
+      한 턴에 60초의 제한시간이 있으며, 시간 안에 말을 움직이지 못하면 패배합니다.
+      <h3>친구와 온라인 대전 (베타)</h3>
+      방을 만들어 코드를 공유하면 친구와 실시간으로 대전할 수 있습니다. 베타 기능으로, 대국 중 새로고침하면 연결이 끊어질 수 있습니다.
+      <h3>안내</h3>
+      본 게임은 방송에 등장한 게임 방식을 참고해 재해석한 팬메이드 오리지널 게임입니다(명칭·그래픽 모두 오리지널).
+    `
+  },
+  en:{
+    subtitle:'Tactical Number Battle · 1P vs COM',
+    titleHint:'54 squares, 14 pieces each. Capture the enemy King or break through to their back line.<br>If the sum is 10 or more, the higher number wins; if under 10, the lower number wins.',
+    btnPrepare:'Prepare for Battle',
+    btnRules:'Rules',
+    setupHint:'Pick a piece from the list below, then click an empty square in your zone (bottom 3 rows) to place it.<br>Click a placed piece again to return it to the list.',
+    btnRandom:'Random Placement',
+    btnClear:'Clear',
+    btnConfirm:(n)=>`Start Battle (${n}/14)`,
+    ftTitle:'Who goes first?',
+    btnFirstHuman:'I go first',
+    btnFirstAI:'Opponent goes first',
+    lastMoveAI:'Opponent\'s last move:',
+    lastMoveHuman:'Your last move:',
+    noneYet:'None yet',
+    unknownPiece:'Unknown piece',
+    graveAI:'Opponent pieces removed',
+    graveHuman:'Your pieces removed',
+    graveEmpty:'None',
+    btnNewGame:'New Game',
+    endTitleWin:'Victory!',
+    endTitleLose:'Defeat...',
+    btnPlayAgain:'Play Again',
+    helpTitle:'Number Front Rules',
+    btnClose:'Close',
+    ownerYou:'You',
+    ownerCom:'COM',
+    msgStart:'Battle start! Your turn.',
+    pieceMine:'Mine',
+    pieceKing:'King',
+    msgRemoved:(owner,label)=>`${owner}'s ${label} was removed`,
+    msgSurvive:(owner,label)=>`${owner}'s ${label} survived`,
+    msgRevive:(owner,label)=>`${owner} revival: ${label} came back`,
+    reasons:{
+      king_captured_human:'The opponent captured your King.',
+      king_captured_ai:'You captured the opponent\'s King!',
+      wipeout_human:'All of your pieces have been eliminated.',
+      wipeout_ai:'You eliminated all of the opponent\'s pieces!',
+      breakthrough:'A King broke through all the way to the enemy\'s back row!',
+      no_moves_ai:'The opponent has no legal moves left.',
+      no_moves_human:'You have no legal moves left.',
+      timeout_human:'You failed to move within the time limit.'
+    },
+    helpHTML:`
+      <h3>Objective</h3>
+      Win by capturing the enemy King, eliminating every enemy piece except the King, or marching your own King all the way to the enemy's back row.
+      <h3>Movement</h3>
+      A piece may move 1 square left or right, 1 square diagonally forward, or 1-2 squares straight forward (no jumping). Moving backward is never allowed, and you can't move onto a square that's already occupied. Mines cannot move at all.
+      <h3>Combat</h3>
+      After a move, if your piece ends up orthogonally adjacent (up/down/left/right) to an enemy piece, a battle happens immediately. If the two values add up to less than 10, the <b>lower</b> number wins; if the sum is 10 or more, the <b>higher</b> number wins (if both values are equal, both pieces are removed). Touching a mine destroys both pieces regardless of value. The King has no combat power and is removed by contact with any piece (King vs King has no effect).
+      <h3>Minus Lines</h3>
+      The board has two dashed red vertical boundary lines (between the 2nd-3rd columns, and between the 4th-5th columns from the left). If a battle happens <b>sideways</b> across one of these lines, the result is decided by the <b>difference</b> (higher minus lower) instead of the sum — but the <b>smaller number wins</b> (the larger number loses). Vertical battles, or sideways battles elsewhere on the board, are unaffected. That's why advancing straight up the outer columns (column 1 or 6) lets you mostly avoid minus battles.
+      <h3>Revival</h3>
+      If a non-King piece survives all the way to the enemy's back row, that piece is spent to revive one of your previously captured pieces instead — it returns face-up, placed on your own back row.
+      <h3>Time Limit</h3>
+      Each turn has a 60-second limit. Failing to move in time results in a loss.
+      <h3>Note</h3>
+      This is an original fan-made reinterpretation of a game mechanic seen on a TV show (all names and artwork are original).
+    `
+  }
+};
+function T(){ return I18N[currentLang]; }
+
+function isMinusBoundary(c1,c2){
+  const lo=Math.min(c1,c2), hi=Math.max(c1,c2);
+  return (lo===1&&hi===2) || (lo===3&&hi===4);
+}
+function inBounds(r,c){ return r>=0&&r<ROWS&&c>=0&&c<COLS; }
+function forwardDir(owner){ return owner===HUMAN? -1 : 1; }
+function opponentBackRow(owner){ return owner===HUMAN? 0 : 8; }
+function ownZone(owner){ return owner===HUMAN? HUMAN_ZONE : AI_ZONE; }
+function sleep(ms){ return new Promise(res=>setTimeout(res,ms)); }
+function ownerLabel(o){ return o===HUMAN? T().ownerYou : T().ownerCom; }
+function valueLabel(p){
+  if(p.type==='mine') return T().pieceMine;
+  if(p.type==='king') return T().pieceKing;
+  return String(p.value);
+}
+
+let board=[];
+let pieces=[];
+let state={
+  turn:HUMAN,
+  selected:null,
+  timer:null,
+  timeLeft:60,
+  over:false,
+  lastMove:{human:null, ai:null}
+};
+
+function freshBoard(){
+  board=[];
+  for(let r=0;r<ROWS;r++){ board.push(new Array(COLS).fill(null)); }
+}
+
+let idCounter=1;
+function makePieceSet(owner){
+  const arr=[];
+  for(let v=1; v<=10; v++){ arr.push({id:idCounter++, owner, type:'num', value:v, row:-1,col:-1, alive:true, revealed: owner===HUMAN}); }
+  for(let i=0;i<3;i++){ arr.push({id:idCounter++, owner, type:'mine', value:null, row:-1,col:-1, alive:true, revealed: owner===HUMAN}); }
+  arr.push({id:idCounter++, owner, type:'king', value:null, row:-1,col:-1, alive:true, revealed: owner===HUMAN});
+  return arr;
+}
+
+let humanTray=[];
+let humanPlaced=[];
+let setupSelected=null;
+
+function startSetup(){
+  freshBoard();
+  pieces=[];
+  const humanPieces=makePieceSet(HUMAN);
+  humanTray=humanPieces.slice();
+  humanPlaced=[];
+  pieces=pieces.concat(humanPieces);
+  setupSelected=null;
+  showScreen('setup');
+  renderSetup();
+  buildMinusOverlay('setup-minus-overlay');
+}
+
+function renderSetup(){
+  const boardEl=document.getElementById('setup-board');
+  boardEl.innerHTML='';
+  for(let r=0;r<ROWS;r++){
+    for(let c=0;c<COLS;c++){
+      const cell=document.createElement('div');
+      cell.className='cell '+zoneClass(r);
+      if(HUMAN_ZONE.includes(r)){
+        cell.style.cursor='pointer';
+        cell.addEventListener('click',()=>onSetupCellClick(r,c));
+      }
+      const p=board[r][c];
+      if(p){
+        const pv=document.createElement('div');
+        pv.className='piece owner-human '+p.type;
+        pv.textContent = p.type==='num'? p.value : '';
+        pv.style.cursor='pointer';
+        pv.addEventListener('click',(e)=>{ e.stopPropagation(); onSetupPiecePlacedClick(p); });
+        cell.appendChild(pv);
+      }
+      boardEl.appendChild(cell);
+    }
+  }
+  const trayEl=document.getElementById('setup-tray');
+  trayEl.innerHTML='';
+  humanTray.forEach(p=>{
+    const el=document.createElement('div');
+    el.className='tray-piece '+p.type;
+    if(setupSelected===p) el.classList.add('selected');
+    el.textContent = p.type==='num'? p.value : (p.type==='mine'?'M':'K');
+    el.addEventListener('click',()=>{
+      setupSelected = (setupSelected===p)? null : p;
+      renderSetup();
+    });
+    trayEl.appendChild(el);
+  });
+  document.getElementById('btn-confirm').disabled = humanTray.length>0;
+  document.getElementById('btn-confirm').textContent = T().btnConfirm(humanPlaced.length);
+}
+
+function zoneClass(r){
+  if(HUMAN_ZONE.includes(r)) return 'zone-human';
+  if(AI_ZONE.includes(r)) return 'zone-ai';
+  return 'zone-neutral';
+}
+
+function onSetupCellClick(r,c){
+  if(board[r][c] || !setupSelected) return;
+  const p=setupSelected;
+  p.row=r; p.col=c;
+  board[r][c]=p;
+  humanTray=humanTray.filter(x=>x!==p);
+  humanPlaced.push(p);
+  setupSelected=null;
+  renderSetup();
+}
+function onSetupPiecePlacedClick(p){
+  board[p.row][p.col]=null;
+  humanPlaced=humanPlaced.filter(x=>x!==p);
+  p.row=-1;p.col=-1;
+  humanTray.push(p);
+  renderSetup();
+}
+
+function randomPlaceHuman(){
+  humanPlaced.forEach(p=>{ board[p.row][p.col]=null; p.row=-1;p.col=-1; });
+  humanTray = pieces.filter(p=>p.owner===HUMAN);
+  humanPlaced=[];
+  const cells=[];
+  HUMAN_ZONE.forEach(r=>{ for(let c=0;c<COLS;c++) cells.push([r,c]); });
+  shuffle(cells);
+  const toPlace=humanTray.slice();
+  shuffle(toPlace);
+  toPlace.forEach((p,i)=>{
+    const [r,c]=cells[i];
+    p.row=r;p.col=c;
+    board[r][c]=p;
+    humanPlaced.push(p);
+  });
+  humanTray=[];
+  setupSelected=null;
+  renderSetup();
+}
+function clearHumanPlacement(){
+  humanPlaced.forEach(p=>{ board[p.row][p.col]=null; p.row=-1;p.col=-1; });
+  humanTray = pieces.filter(p=>p.owner===HUMAN);
+  humanPlaced=[];
+  setupSelected=null;
+  renderSetup();
+}
+function shuffle(arr){
+  for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
+}
+
+function placeAI(){
+  const aiPieces = makePieceSet(AI);
+  pieces = pieces.concat(aiPieces);
+  const zoneCells=[];
+  AI_ZONE.forEach(r=>{ for(let c=0;c<COLS;c++) zoneCells.push([r,c]); });
+
+  const king = aiPieces.find(p=>p.type==='king');
+  const mines = aiPieces.filter(p=>p.type==='mine');
+  const nums = aiPieces.filter(p=>p.type==='num');
+
+  const backRow=0;
+  const corner = Math.random()<0.5? [backRow,0] : [backRow,5];
+  king.row=corner[0]; king.col=corner[1]; board[corner[0]][corner[1]]=king;
+  let used = new Set([corner[0]+'_'+corner[1]]);
+
+  let remaining = zoneCells.filter(([r,c])=>!used.has(r+'_'+c));
+  shuffle(remaining);
+  mines.forEach(m=>{
+    const [r,c]=remaining.pop();
+    m.row=r;m.col=c;board[r][c]=m; used.add(r+'_'+c);
+  });
+
+  remaining = zoneCells.filter(([r,c])=>!used.has(r+'_'+c));
+  remaining.sort((a,b)=> edgeDist(a[1]) - edgeDist(b[1]));
+  groupShuffleByDistance(remaining);
+  const sortedNums = nums.slice().sort((a,b)=>b.value-a.value);
+  sortedNums.forEach((n,i)=>{
+    const [r,c]=remaining[i];
+    n.row=r;n.col=c;board[r][c]=n;
+  });
+}
+function edgeDist(c){ return Math.min(c,5-c); }
+function groupShuffleByDistance(cellsArr){
+  let i=0;
+  while(i<cellsArr.length){
+    let j=i;
+    while(j<cellsArr.length && edgeDist(cellsArr[j][1])===edgeDist(cellsArr[i][1])) j++;
+    const slice=cellsArr.slice(i,j);
+    shuffle(slice);
+    for(let k=0;k<slice.length;k++) cellsArr[i+k]=slice[k];
+    i=j;
+  }
+}
+
+function getLegalMoves(piece){
+  if(!piece.alive || piece.type==='mine') return [];
+  const f=forwardDir(piece.owner);
+  const moves=[];
+  const cand=[[0,-1],[0,1],[f,-1],[f,1],[f,0]];
+  cand.forEach(([dr,dc])=>{
+    const nr=piece.row+dr, nc=piece.col+dc;
+    if(inBounds(nr,nc) && !board[nr][nc]) moves.push({row:nr,col:nc});
+  });
+  const mr1=piece.row+f, mc1=piece.col;
+  const mr2=piece.row+2*f, mc2=piece.col;
+  if(inBounds(mr2,mc2) && !board[mr1][mc1] && !board[mr2][mc2]){
+    moves.push({row:mr2,col:mc2});
+  }
+  return moves;
+}
+function hasAnyLegalMove(owner){
+  return pieces.some(p=>p.owner===owner && p.alive && getLegalMoves(p).length>0);
+}
+
+function resolvePair(mover,defender,moverVal,defVal,minusZone){
+  if(mover.type==='mine' || defender.type==='mine') return {moverLoses:true, defLoses:true};
+  if(mover.type==='king' || defender.type==='king'){
+    if(mover.type==='king' && defender.type==='king') return {moverLoses:false, defLoses:false};
+    if(mover.type==='king') return {moverLoses:true, defLoses:false};
+    return {moverLoses:false, defLoses:true};
+  }
+  if(moverVal===defVal) return {moverLoses:true, defLoses:true};
+  if(minusZone){
+    if(moverVal<defVal) return {moverLoses:false, defLoses:true};
+    return {moverLoses:true, defLoses:false};
+  }
+  const sum=moverVal+defVal;
+  if(sum<10){
+    if(moverVal<defVal) return {moverLoses:false, defLoses:true};
+    return {moverLoses:true, defLoses:false};
+  }
+  if(moverVal>defVal) return {moverLoses:false, defLoses:true};
+  return {moverLoses:true, defLoses:false};
+}
+
+let logHistory=[];
+function addLog(entry){
+  logHistory.push(entry);
+  renderLogPanel();
+}
+function describeLogEntry(entry){
+  const t=T();
+  if(entry.type==='start') return t.msgStart;
+  if(entry.type==='move') return `${ownerLabel(entry.owner)}: (${entry.fromR+1},${entry.fromC+1}) → (${entry.toR+1},${entry.toC+1})`;
+  if(entry.type==='removed') return t.msgRemoved(ownerLabel(entry.owner), entry.label(t));
+  if(entry.type==='survive') return t.msgSurvive(ownerLabel(entry.owner), entry.label(t));
+  if(entry.type==='revive') return t.msgRevive(ownerLabel(entry.owner), entry.label(t));
+  return '';
+}
+function renderLogPanel(){
+  const panel=document.getElementById('log-panel');
+  panel.innerHTML='';
+  for(let i=logHistory.length-1;i>=0;i--){
+    const div=document.createElement('div');
+    div.textContent=describeLogEntry(logHistory[i]);
+    panel.appendChild(div);
+  }
+}
+
+async function doMove(piece, destR, destC){
+  stopTimer();
+  const originR=piece.row, originC=piece.col;
+  board[originR][originC]=null;
+  piece.row=destR; piece.col=destC;
+  board[destR][destC]=piece;
+  state.selected=null;
+  state.lastMove[piece.owner] = {fromR:originR, fromC:originC, toR:destR, toC:destC, pieceId:piece.id};
+  addLog({type:'move', owner:piece.owner, fromR:originR, fromC:originC, toR:destR, toC:destC});
+  renderGame();
+
+  const oppBackRow = opponentBackRow(piece.owner);
+
+  if(piece.type==='king' && destR===oppBackRow){
+    await sleep(250);
+    endGame(piece.owner, 'breakthrough');
+    return;
+  }
+
+  const dirs=[[-1,0],[1,0],[0,-1],[0,1]];
+  const defenders=[];
+  dirs.forEach(([dr,dc])=>{
+    const nr=destR+dr, nc=destC+dc;
+    if(inBounds(nr,nc)){
+      const other=board[nr][nc];
+      if(other && other.owner!==piece.owner && other.alive) defenders.push({piece:other,dr,dc});
+    }
+  });
+
+  if(defenders.length>0){
+    await sleep(400);
+    const results=[];
+    defenders.forEach(({piece:def,dc})=>{
+      const minusZone = dc!==0 ? isMinusBoundary(destC, destC+dc) : false;
+      const moverVal = piece.type==='num'? piece.value : null;
+      const defVal = def.type==='num'? def.value : null;
+      const res = resolvePair(piece,def,moverVal,defVal,minusZone);
+      results.push({def,res});
+    });
+    const moverLoses = results.some(r=>r.res.moverLoses);
+    piece.revealed=true;
+
+    results.forEach(({def,res})=>{
+      def.revealed=true;
+      if(res.defLoses){
+        def.alive=false; board[def.row][def.col]=null;
+        addLog({type:'removed', owner:def.owner, label:pieceLabelFn(def)});
+      }
+    });
+    if(moverLoses){
+      piece.alive=false; board[destR][destC]=null;
+      addLog({type:'removed', owner:piece.owner, label:pieceLabelFn(piece)});
+    } else if (results.length>0) {
+      addLog({type:'survive', owner:piece.owner, label:pieceLabelFn(piece)});
+    }
+    renderGame();
+    await sleep(350);
+
+    const winCheck = checkWinCondition();
+    if(winCheck){ endGame(winCheck.side, winCheck.reasonCode); return; }
+    if(moverLoses){ switchTurn(); return; }
+  }
+
+  if(piece.alive && piece.type!=='king' && destR===oppBackRow){
+    reviveDeadPiece(piece.owner);
+    renderGame();
+  }
+
+  switchTurn();
+}
+
+function pieceLabelFn(piece){
+  return (t)=>{
+    if(piece.type==='mine') return t.pieceMine;
+    if(piece.type==='king') return t.pieceKing;
+    return String(piece.value);
+  };
+}
+
+function reviveDeadPiece(owner){
+  const dead = pieces.filter(p=>p.owner===owner && !p.alive && p.type!=='king');
+  if(dead.length===0) return;
+  dead.sort((a,b)=> (b.type==='num'?b.value:0) - (a.type==='num'?a.value:0));
+  const revived = dead[0];
+  const zoneRow = owner===HUMAN? 8 : 0;
+  let cell=null;
+  for(let c=0;c<COLS;c++){ if(!board[zoneRow][c]){ cell=[zoneRow,c]; break; } }
+  if(!cell){
+    for(const r of ownZone(owner)){
+      for(let c=0;c<COLS;c++){ if(!board[r][c]){ cell=[r,c]; break; } }
+      if(cell) break;
+    }
+  }
+  if(!cell) return;
+  revived.alive=true; revived.row=cell[0]; revived.col=cell[1]; revived.revealed=true;
+  board[cell[0]][cell[1]]=revived;
+  addLog({type:'revive', owner:owner, label:pieceLabelFn(revived)});
+}
+
+function checkWinCondition(){
+  const humanKing = pieces.find(p=>p.owner===HUMAN && p.type==='king');
+  const aiKing = pieces.find(p=>p.owner===AI && p.type==='king');
+  if(!humanKing.alive) return {side:AI, reasonCode:'king_captured_human'};
+  if(!aiKing.alive) return {side:HUMAN, reasonCode:'king_captured_ai'};
+  const humanRemain = pieces.filter(p=>p.owner===HUMAN && p.alive && p.type!=='king').length;
+  const aiRemain = pieces.filter(p=>p.owner===AI && p.alive && p.type!=='king').length;
+  if(humanRemain===0) return {side:AI, reasonCode:'wipeout_human'};
+  if(aiRemain===0) return {side:HUMAN, reasonCode:'wipeout_ai'};
+  return null;
+}
+
+function switchTurn(){
+  if(state.over) return;
+  state.turn = state.turn===HUMAN? AI : HUMAN;
+  state.selected=null;
+  renderGame();
+  if(state.turn===AI){
+    if(!hasAnyLegalMove(AI)){ endGame(HUMAN,'no_moves_ai'); return; }
+    if(netEnabled){
+      // opponent's turn: just wait for their 'move' broadcast, no local timer needed
+      return;
+    }
+    setTimeout(aiTakeTurn, 700+Math.random()*500);
+  } else {
+    if(!hasAnyLegalMove(HUMAN)){ endGame(AI,'no_moves_human'); return; }
+    startHumanTimer();
+  }
+}
+
+function startHumanTimer(){
+  stopTimer();
+  state.timeLeft=60;
+  updateTimerUI();
+  state.timer=setInterval(()=>{
+    state.timeLeft--;
+    updateTimerUI();
+    if(state.timeLeft<=0){
+      stopTimer();
+      if(netEnabled) netSend({type:'timeout'});
+      endGame(AI,'timeout_human');
+    }
+  },1000);
+}
+function stopTimer(){ if(state.timer){ clearInterval(state.timer); state.timer=null; } }
+function updateTimerUI(){
+  const el=document.getElementById('timer');
+  el.textContent=state.timeLeft;
+  el.classList.toggle('low', state.timeLeft<=10 && state.turn===HUMAN);
+}
+
+function aiTakeTurn(){
+  if(state.over || netEnabled) return;
+  const aiPieces = pieces.filter(p=>p.owner===AI && p.alive);
+  let best=null, bestScore=-Infinity;
+  const options=[];
+  aiPieces.forEach(piece=>{
+    getLegalMoves(piece).forEach(mv=>{
+      const score = evaluateMove(piece, mv);
+      options.push({piece, mv, score});
+    });
+  });
+  if(options.length===0) return;
+  if(Math.random()<0.08){
+    best = options[Math.floor(Math.random()*options.length)];
+  } else {
+    options.forEach(opt=>{
+      const jitter = opt.score + (Math.random()*3-1.5);
+      if(jitter>bestScore){ bestScore=jitter; best=opt; }
+    });
+  }
+  doMove(best.piece, best.mv.row, best.mv.col);
+}
+
+function evaluateMove(piece, mv){
+  let score=0;
+  const f=forwardDir(AI);
+  score += (mv.row - piece.row)*f * 1.5;
+  score += 2 - Math.abs(mv.col-2.5);
+  if(piece.type==='king') score -= 3;
+
+  const dirs=[[-1,0],[1,0],[0,-1],[0,1]];
+  dirs.forEach(([dr,dc])=>{
+    const nr=mv.row+dr, nc=mv.col+dc;
+    if(inBounds(nr,nc)){
+      const other=board[nr][nc];
+      if(other && other.owner===HUMAN && other.alive){
+        const minusZone = dc!==0 ? isMinusBoundary(mv.col, nc) : false;
+        score += estimateBattle(piece, other, minusZone);
+      }
+    }
+  });
+  return score;
+}
+function estimateBattle(mover, defender, minusZone){
+  if(defender.type==='king' && defender.revealed) return 25;
+  if(!defender.revealed){
+    if(mover.type==='king') return -20;
+    return -1;
+  }
+  if(defender.type==='mine'){
+    return mover.type==='king'? -20 : -6;
+  }
+  if(mover.type==='king') return -20;
+  const oppVal=defender.value, myVal=mover.value;
+  let iWin;
+  if(minusZone) iWin = myVal<oppVal;
+  else { const s=myVal+oppVal; iWin = (s<10? myVal<oppVal : myVal>oppVal); }
+  if(iWin===true) return 6+oppVal*0.5;
+  if(iWin===false) return -9;
+  return -3;
+}
+
+function renderGame(){
+  const boardEl=document.getElementById('game-board');
+  boardEl.innerHTML='';
+  const legalTargets = state.selected? getLegalMoves(state.selected) : [];
+  for(let r=0;r<ROWS;r++){
+    for(let c=0;c<COLS;c++){
+      const cell=document.createElement('div');
+      cell.className='cell '+zoneClass(r);
+      if(state.selected && state.selected.row===r && state.selected.col===c) cell.classList.add('selected-cell');
+      if(legalTargets.some(m=>m.row===r&&m.col===c)) cell.classList.add('selectable');
+      const lm=state.lastMove;
+      if(lm.human){
+        if(lm.human.fromR===r && lm.human.fromC===c) cell.classList.add('trace-human-from');
+        if(lm.human.toR===r && lm.human.toC===c) cell.classList.add('trace-human-to');
+      }
+      if(lm.ai){
+        if(lm.ai.fromR===r && lm.ai.fromC===c) cell.classList.add('trace-ai-from');
+        if(lm.ai.toR===r && lm.ai.toC===c) cell.classList.add('trace-ai-to');
+      }
+      cell.addEventListener('click',()=>onGameCellClick(r,c));
+      const p=board[r][c];
+      if(p){
+        const pv=document.createElement('div');
+        const isHumanSide = p.owner===HUMAN;
+        const shown = isHumanSide || p.revealed;
+        pv.className='piece owner-'+p.owner+' '+p.type+' '+(shown? 'revealed':'hidden-face');
+        if(shown && p.type==='num') pv.textContent=p.value;
+        if(isHumanSide && p.alive && state.turn===HUMAN && !state.over) pv.classList.add('clickable');
+        cell.appendChild(pv);
+      }
+      boardEl.appendChild(cell);
+    }
+  }
+  document.getElementById('human-count').textContent =
+    '('+pieces.filter(p=>p.owner===HUMAN&&p.alive).length+')';
+  document.getElementById('ai-count').textContent =
+    '('+pieces.filter(p=>p.owner===AI&&p.alive).length+')';
+
+  renderGraveyards();
+  renderLastMoves();
+}
+
+function describeLastMove(entry){
+  const t=T();
+  if(!entry) return t.noneYet;
+  const piece = pieces.find(p=>p.id===entry.pieceId);
+  let label;
+  if(!piece){ label='—'; }
+  else if(piece.owner===HUMAN || piece.revealed){ label = valueLabel(piece); }
+  else { label = t.unknownPiece; }
+  return `(${entry.fromR+1},${entry.fromC+1}) → (${entry.toR+1},${entry.toC+1}) · ${label}`;
+}
+function renderLastMoves(){
+  const t=T();
+  document.getElementById('last-move-ai').innerHTML =
+    t.lastMoveAI+' <b>'+describeLastMove(state.lastMove.ai)+'</b>';
+  document.getElementById('last-move-human').innerHTML =
+    t.lastMoveHuman+' <b>'+describeLastMove(state.lastMove.human)+'</b>';
+}
+
+function renderGraveyards(){
+  const humanDead = pieces.filter(p=>p.owner===HUMAN && !p.alive);
+  const aiDead = pieces.filter(p=>p.owner===AI && !p.alive);
+  fillGraveyard('human-graveyard-items', humanDead);
+  fillGraveyard('ai-graveyard-items', aiDead);
+  document.getElementById('human-graveyard-count').textContent = humanDead.length;
+  document.getElementById('ai-graveyard-count').textContent = aiDead.length;
+}
+function fillGraveyard(containerId, list){
+  const el=document.getElementById(containerId);
+  el.innerHTML='';
+  if(list.length===0){
+    const span=document.createElement('span');
+    span.className='graveyard-empty';
+    span.textContent=T().graveEmpty;
+    el.appendChild(span);
+    return;
+  }
+  list.forEach(p=>{
+    const d=document.createElement('div');
+    d.className='grave-piece owner-'+p.owner;
+    d.textContent = p.type==='num'? p.value : (p.type==='mine'?'✦':'♛');
+    el.appendChild(d);
+  });
+}
+
+function onGameCellClick(r,c){
+  if(state.over || state.turn!==HUMAN) return;
+  const piece=board[r][c];
+  if(state.selected){
+    const sel=state.selected;
+    if(sel.row===r && sel.col===c){ state.selected=null; renderGame(); return; }
+    const moves=getLegalMoves(sel);
+    if(moves.some(m=>m.row===r&&m.col===c)){
+      if(netEnabled) netSend({type:'move', fromR:sel.row, fromC:sel.col, toR:r, toC:c});
+      doMove(sel, r, c);
+      return;
+    }
+    if(piece && piece.owner===HUMAN && piece.alive){ state.selected=piece; renderGame(); return; }
+    state.selected=null; renderGame();
+  } else {
+    if(piece && piece.owner===HUMAN && piece.alive){ state.selected=piece; renderGame(); }
+  }
+}
+
+/* vertical minus-boundary overlay: lines between col1|2 and col3|4 (0-indexed), spanning all 9 rows */
+function buildMinusOverlay(containerId){
+  const el=document.getElementById(containerId);
+  el.innerHTML='';
+  [2,4].forEach(colBoundary=>{ // boundary drawn at left edge of column index colBoundary (i.e. after column colBoundary-1)
+    const line=document.createElement('div');
+    line.className='minus-line';
+    line.style.left = (colBoundary/COLS*100)+'%';
+    for(let r=0;r<ROWS;r++){
+      const tick=document.createElement('div');
+      tick.className='minus-tick';
+      tick.textContent='−';
+      line.appendChild(tick);
+    }
+    el.appendChild(line);
+  });
+}
+
+function beginGame(firstTurn, opponentBoardData){
+  if(netEnabled && opponentBoardData){
+    placeOpponentFromData(opponentBoardData);
+  } else {
+    placeAI();
+  }
+  state.turn=firstTurn;
+  state.selected=null;
+  state.over=false;
+  state.lastMove={human:null, ai:null};
+  logHistory=[];
+  showScreen('game');
+  renderGame();
+  buildMinusOverlay('game-minus-overlay');
+  addLog({type:'start'});
+  if(firstTurn===HUMAN){
+    startHumanTimer();
+  } else if(!netEnabled) {
+    renderGame();
+    setTimeout(aiTakeTurn, 800);
+  }
+  // in net mode, when firstTurn===AI, we simply wait for the opponent's 'move' broadcast
+}
+
+function placeOpponentFromData(dataArr){
+  const oppPieces = dataArr.map(d=>({
+    id: idCounter++,
+    owner: AI,
+    type: d.type,
+    value: d.type==='num'? d.value : null,
+    row: flipR(d.row),
+    col: flipC(d.col),
+    alive: true,
+    revealed: false
+  }));
+  pieces = pieces.concat(oppPieces);
+  oppPieces.forEach(p=>{ board[p.row][p.col]=p; });
+}
+
+function endGame(winner, reasonCode){
+  state.over=true;
+  state.endInfo={winner, reasonCode};
+  stopTimer();
+  renderGame();
+  updateEndModalText();
+  document.getElementById('modal-end').classList.remove('hidden');
+}
+function updateEndModalText(){
+  if(!state.endInfo) return;
+  const t=T();
+  document.getElementById('end-title').textContent = state.endInfo.winner===HUMAN? t.endTitleWin : t.endTitleLose;
+  document.getElementById('end-desc').textContent = t.reasons[state.endInfo.reasonCode] || '';
+}
+
+function showScreen(name){
+  ['mode','room','title','setup','game'].forEach(s=>{
+    document.getElementById('screen-'+s).classList.toggle('hidden', s!==name);
+  });
+  document.body.classList.toggle('center-mode', name==='mode' || name==='room');
+}
+
+function cleanupNet(){
+  if(netChannel){ try{ netChannel.unsubscribe(); }catch(e){} netChannel=null; }
+  netEnabled=false; netRole=null; netRoomCode=null;
+  netReadySent=false; netOpponentReadyBoard=null; netGameStarted=false;
+}
+function showFirstTurnModalNet(){
+  document.getElementById('modal-firstturn').classList.remove('hidden');
+}
+
+function applyLanguage(lang){
+  currentLang=lang;
+  const t=T();
+  document.documentElement.lang = lang;
+  document.getElementById('lang-btn-ko').classList.toggle('active', lang==='ko');
+  document.getElementById('lang-btn-en').classList.toggle('active', lang==='en');
+
+  document.getElementById('subtitle-text').textContent = t.subtitle;
+  document.getElementById('title-hint').innerHTML = t.titleHint;
+  document.getElementById('btn-start').textContent = t.btnPrepare;
+  document.getElementById('btn-help-title').textContent = t.btnRules;
+
+  document.getElementById('setup-hint-text').innerHTML = t.setupHint;
+  document.getElementById('btn-random').textContent = t.btnRandom;
+  document.getElementById('btn-clear').textContent = t.btnClear;
+  document.getElementById('btn-confirm').textContent = t.btnConfirm(humanPlaced.length);
+
+  document.getElementById('ft-title').textContent = t.ftTitle;
+  document.getElementById('btn-first-human').textContent = t.btnFirstHuman;
+  document.getElementById('btn-first-ai').textContent = t.btnFirstAI;
+
+  document.getElementById('grave-ai-label').textContent = t.graveAI;
+  document.getElementById('grave-human-label').textContent = t.graveHuman;
+  document.getElementById('btn-help-game').textContent = t.btnRules;
+  document.getElementById('btn-restart').textContent = t.btnNewGame;
+
+  document.getElementById('btn-play-again').textContent = t.btnPlayAgain;
+  document.getElementById('help-title').textContent = t.helpTitle;
+  document.getElementById('btn-close-help').textContent = t.btnClose;
+  document.getElementById('help-body').innerHTML = t.helpHTML;
+
+  if(!document.getElementById('screen-game').classList.contains('hidden')){
+    renderGame();
+  }
+  if(!document.getElementById('modal-end').classList.contains('hidden')){
+    updateEndModalText();
+  }
+}
+
+document.getElementById('btn-mode-ai').addEventListener('click', ()=>{
+  cleanupNet();
+  showScreen('title');
+});
+document.getElementById('btn-mode-online').addEventListener('click', ()=>{
+  showScreen('room');
+});
+document.getElementById('btn-room-create').addEventListener('click', createRoom);
+document.getElementById('btn-room-join').addEventListener('click', ()=>{
+  const code=document.getElementById('room-code-input').value.trim();
+  joinRoom(code);
+});
+document.getElementById('btn-room-back').addEventListener('click', ()=>{
+  cleanupNet();
+  setRoomStatus('');
+  document.getElementById('room-code-input').value='';
+  showScreen('mode');
+});
+
+document.getElementById('btn-start').addEventListener('click', startSetup);
+document.getElementById('btn-random').addEventListener('click', randomPlaceHuman);
+document.getElementById('btn-clear').addEventListener('click', clearHumanPlacement);
+document.getElementById('btn-confirm').addEventListener('click', ()=>{
+  if(netEnabled){
+    const data = humanPlaced.map(p=>({row:p.row, col:p.col, type:p.type, value:p.value}));
+    netReadySent = true;
+    netSend({type:'ready', board:data});
+    document.getElementById('btn-confirm').disabled = true;
+    document.getElementById('btn-confirm').textContent = '상대의 배치를 기다리는 중...';
+    tryStartNetGame();
+    return;
+  }
+  document.getElementById('modal-firstturn').classList.remove('hidden');
+});
+document.getElementById('btn-first-human').addEventListener('click', ()=>{
+  document.getElementById('modal-firstturn').classList.add('hidden');
+  if(netEnabled){
+    netGameStarted=true;
+    netSend({type:'start', firstTurn:'mine'});
+    beginGame(HUMAN, netOpponentReadyBoard);
+    return;
+  }
+  beginGame(HUMAN);
+});
+document.getElementById('btn-first-ai').addEventListener('click', ()=>{
+  document.getElementById('modal-firstturn').classList.add('hidden');
+  if(netEnabled){
+    netGameStarted=true;
+    netSend({type:'start', firstTurn:'theirs'});
+    beginGame(AI, netOpponentReadyBoard);
+    return;
+  }
+  beginGame(AI);
+});
+document.getElementById('btn-restart').addEventListener('click', ()=>{
+  stopTimer();
+  cleanupNet();
+  document.getElementById('modal-end').classList.add('hidden');
+  showScreen('mode');
+});
+document.getElementById('btn-play-again').addEventListener('click', ()=>{
+  stopTimer();
+  cleanupNet();
+  document.getElementById('modal-end').classList.add('hidden');
+  showScreen('mode');
+});
+document.getElementById('btn-help-title').addEventListener('click', ()=>document.getElementById('modal-help').classList.remove('hidden'));
+document.getElementById('btn-help-game').addEventListener('click', ()=>document.getElementById('modal-help').classList.remove('hidden'));
+document.getElementById('btn-close-help').addEventListener('click', ()=>document.getElementById('modal-help').classList.add('hidden'));
+
+document.getElementById('lang-btn-ko').addEventListener('click', ()=>applyLanguage('ko'));
+document.getElementById('lang-btn-en').addEventListener('click', ()=>applyLanguage('en'));
+
+applyLanguage('ko');
+showScreen('mode');
+})();
+</script>
+</body>
+</html>

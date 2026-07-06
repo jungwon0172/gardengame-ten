@@ -165,19 +165,28 @@
   .piece.clickable{cursor:pointer;}
 
   .game-board-row{display:flex;gap:6px;justify-content:center;align-items:stretch;margin:4px auto 0;width:100%;}
-  .captured-col{display:flex;flex-direction:column;width:28px;flex-shrink:0;}
+  .captured-col{display:flex;flex-direction:column;width:60px;flex-shrink:0;}
   .captured-section{
     flex:1;display:flex;flex-direction:column;flex-wrap:wrap;align-content:flex-start;
-    gap:2px;overflow:hidden;
+    gap:3px;overflow:hidden;
   }
   .captured-spacer{flex:1;}
-  .game-board-row .board-wrap{width:min(85vw,300px);margin:4px 0;}
+  .game-board-row .board-wrap{width:min(75vw,258px);margin:4px 0;}
   .grave-piece{
-    width:13px;height:13px;border-radius:3px;display:flex;align-items:center;justify-content:center;
-    font-size:7px;font-weight:bold;flex-shrink:0;
+    width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+    font-size:13px;font-weight:bold;flex-shrink:0;
   }
-  .grave-piece.owner-human{background:var(--human-fill);border:1px solid var(--human-accent);color:var(--human-border);}
-  .grave-piece.owner-ai{background:var(--ai-fill);border:1px solid var(--ai-accent);color:var(--ai-border);}
+  .grave-piece.owner-human{background:var(--human-fill);border:1.5px solid var(--human-accent);color:var(--human-border);}
+  .grave-piece.owner-ai{background:var(--ai-fill);border:1.5px solid var(--ai-accent);color:var(--ai-border);}
+
+  #revive-list{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:18px 0 4px;}
+  .revive-option{
+    width:44px;height:44px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+    font-size:17px;font-weight:bold;cursor:pointer;transition:transform .12s;
+    background:var(--human-fill);border:2px solid var(--human-accent);color:var(--human-border);
+  }
+  .revive-option:hover{transform:translateY(-3px);filter:brightness(1.05);}
+  .revive-option.owner-ai{background:var(--ai-fill);border-color:var(--ai-accent);color:var(--ai-border);}
 
   .log-panel{
     width:min(92vw,460px);height:110px;overflow-y:auto;background:var(--panel);
@@ -318,6 +327,14 @@
   </div>
 </div>
 
+<div id="modal-revive" class="overlay hidden">
+  <div class="modal">
+    <h2>부활시킬 말을 선택하세요</h2>
+    <p style="color:var(--muted);font-size:13px;">진영 끝까지 돌파했습니다! 제거된 말 중 하나를 골라 되살릴 수 있습니다.</p>
+    <div id="revive-list"></div>
+  </div>
+</div>
+
 <div id="modal-end" class="overlay hidden">
   <div class="modal">
     <h2 id="end-title">게임 종료</h2>
@@ -455,6 +472,10 @@ function handleNetMessage(msg){
     endGame(HUMAN, 'timeout_human'); // opponent timed out -> I win
     return;
   }
+  if(msg.type==='revive'){
+    reviveDeadPiece(AI, msg.desc);
+    return;
+  }
   if(msg.type==='resign'){
     endGame(HUMAN, 'no_moves_ai');
     return;
@@ -547,7 +568,7 @@ const I18N={
       <h3>마이너스 라인</h3>
       보드에는 붉은 점선으로 표시된 두 개의 세로 경계선이 있습니다(왼쪽에서 2-3번째 칸 사이, 4-5번째 칸 사이). 이 경계선을 사이에 두고 <b>좌우로</b> 맞닿아 대결이 벌어지면, 합이 아니라 <b>큰 수에서 작은 수를 뺀 차이</b>로 승부를 가리되 <b>작은 수를 가진 쪽이 승리</b>합니다(큰 수가 패배). 위아래로 맞닿는 대결이나, 다른 위치에서의 좌우 대결에는 영향을 주지 않습니다. 그래서 맨 끝 줄(1열/6열)에 말을 붙여 정면으로만 전진시키면 마이너스 대결을 거의 피할 수 있습니다.
       <h3>부활</h3>
-      왕이 아닌 말이 상대 진영 맨 끝줄까지 살아서 도달하면, 그 말은 사라지는 대신 지금까지 제거된 내 말 중 하나가 공개된 상태로 부활하여 내 진영 맨 끝줄에 배치됩니다.
+      왕이 아닌 말이 상대 진영 맨 끝줄까지 살아서 도달하면, 그 말은 그대로 살아있고 추가로 지금까지 제거된 내 말 중 하나를 골라 공개된 상태로 부활시켜 내 진영 맨 끝줄에 배치할 수 있습니다.
       <h3>제한시간</h3>
       한 턴에 60초의 제한시간이 있으며, 시간 안에 말을 움직이지 못하면 패배합니다.
       <h3>친구와 온라인 대전 (베타)</h3>
@@ -609,7 +630,7 @@ const I18N={
       <h3>Minus Lines</h3>
       The board has two dashed red vertical boundary lines (between the 2nd-3rd columns, and between the 4th-5th columns from the left). If a battle happens <b>sideways</b> across one of these lines, the result is decided by the <b>difference</b> (higher minus lower) instead of the sum — but the <b>smaller number wins</b> (the larger number loses). Vertical battles, or sideways battles elsewhere on the board, are unaffected. That's why advancing straight up the outer columns (column 1 or 6) lets you mostly avoid minus battles.
       <h3>Revival</h3>
-      If a non-King piece survives all the way to the enemy's back row, that piece is spent to revive one of your previously captured pieces instead — it returns face-up, placed on your own back row.
+      If a non-King piece survives all the way to the enemy's back row, it stays right where it is, and in addition you may choose one of your previously captured pieces to bring back — it returns face-up, placed on your own back row.
       <h3>Time Limit</h3>
       Each turn has a 60-second limit. Failing to move in time results in a loss.
       <h3>Note</h3>
@@ -944,7 +965,12 @@ async function doMove(piece, destR, destC){
   }
 
   if(piece.alive && piece.type!=='king' && destR===oppBackRow){
-    reviveDeadPiece(piece.owner);
+    if(piece.owner===HUMAN){
+      await reviveDeadPiece(HUMAN); // my own piece: interactive picker, wait for choice
+    } else if(!netEnabled){
+      await reviveDeadPiece(AI); // solo vs-AI mode: automatic
+    }
+    // if netEnabled && piece.owner===AI: don't wait here, apply when opponent's 'revive' broadcast arrives
     renderGame();
   }
 
@@ -959,11 +985,36 @@ function pieceLabelFn(piece){
   };
 }
 
-function reviveDeadPiece(owner){
-  const dead = pieces.filter(p=>p.owner===owner && !p.alive && p.type!=='king');
-  if(dead.length===0) return;
-  dead.sort((a,b)=> (b.type==='num'?b.value:0) - (a.type==='num'?a.value:0));
-  const revived = dead[0];
+function reviveDeadPiece(owner, forcedDesc){
+  return new Promise((resolve)=>{
+    const dead = pieces.filter(p=>p.owner===owner && !p.alive && p.type!=='king');
+    if(dead.length===0){ resolve(); return; }
+    if(forcedDesc){
+      const match = dead.find(p=> forcedDesc.type==='num'
+        ? (p.type==='num' && p.value===forcedDesc.value)
+        : p.type===forcedDesc.type);
+      placeRevived(owner, match || dead[0]);
+      resolve();
+      return;
+    }
+    if(owner===HUMAN){
+      showRevivePicker(dead, (chosen)=>{
+        placeRevived(owner, chosen);
+        if(netEnabled){
+          const desc = chosen.type==='num'? {type:'num', value:chosen.value} : {type:chosen.type};
+          netSend({type:'revive', desc});
+        }
+        resolve();
+      });
+      return;
+    }
+    dead.sort((a,b)=> (b.type==='num'?b.value:0) - (a.type==='num'?a.value:0));
+    placeRevived(owner, dead[0]);
+    resolve();
+  });
+}
+
+function placeRevived(owner, revived){
   const zoneRow = owner===HUMAN? 8 : 0;
   let cell=null;
   for(let c=0;c<COLS;c++){ if(!board[zoneRow][c]){ cell=[zoneRow,c]; break; } }
@@ -977,6 +1028,24 @@ function reviveDeadPiece(owner){
   revived.alive=true; revived.row=cell[0]; revived.col=cell[1]; revived.revealed=true;
   board[cell[0]][cell[1]]=revived;
   addLog({type:'revive', owner:owner, label:pieceLabelFn(revived)});
+  renderGame();
+}
+
+function showRevivePicker(deadList, onChoose){
+  const overlay=document.getElementById('modal-revive');
+  const list=document.getElementById('revive-list');
+  list.innerHTML='';
+  deadList.forEach(p=>{
+    const d=document.createElement('div');
+    d.className='revive-option owner-'+p.owner;
+    d.textContent = p.type==='num'? p.value : (p.type==='mine'?'✦':'♛');
+    d.addEventListener('click', ()=>{
+      overlay.classList.add('hidden');
+      onChoose(p);
+    });
+    list.appendChild(d);
+  });
+  overlay.classList.remove('hidden');
 }
 
 function checkWinCondition(){

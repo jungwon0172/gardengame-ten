@@ -89,6 +89,8 @@
   }
   .timer.low{color:var(--danger);animation:pulse 0.6s infinite;}
   @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+  #coin-visual.spinning{display:inline-block;animation:coinspin 0.55s linear infinite;}
+  @keyframes coinspin{from{transform:rotateY(0deg);}to{transform:rotateY(360deg);}}
 
   .board-wrap{
     position:relative;
@@ -207,7 +209,6 @@
 <body class="center-mode">
 
 <h1>NUMBER FRONT</h1>
-<div class="subtitle" id="subtitle-text">숫자 전선 · 1P vs COM</div>
 <div class="lang-switch">
   <button class="lang-btn active" id="lang-btn-ko">한국어</button>
   <button class="lang-btn" id="lang-btn-en">English</button>
@@ -307,6 +308,14 @@
       <button class="primary" id="btn-first-human">내가 먼저 (선공)</button>
       <button id="btn-first-ai">상대가 먼저 (후공)</button>
     </div>
+  </div>
+</div>
+
+<div id="modal-coinflip" class="overlay hidden">
+  <div class="modal">
+    <h2>선공 결정</h2>
+    <div id="coin-visual" style="font-size:60px;margin:18px 0;">🪙</div>
+    <p id="coinflip-status">동전을 던지는 중...</p>
   </div>
 </div>
 
@@ -427,7 +436,12 @@ function handleNetMessage(msg){
   if(msg.type==='start'){
     if(netGameStarted) return;
     netGameStarted=true;
-    beginGame(msg.firstTurn==='mine'? AI : HUMAN, netOpponentReadyBoard);
+    document.getElementById('coin-visual').classList.remove('spinning');
+    document.getElementById('coinflip-status').textContent = msg.firstTurn==='theirs' ? '내가 선공입니다!' : '상대가 선공입니다!';
+    setTimeout(()=>{
+      hideCoinFlipModal();
+      beginGame(msg.firstTurn==='mine'? AI : HUMAN, netOpponentReadyBoard);
+    }, 1200);
     return;
   }
   if(msg.type==='move'){
@@ -450,12 +464,32 @@ function handleNetMessage(msg){
 
 function tryStartNetGame(){
   if(!netReadySent || !netOpponentReadyBoard) return;
+  showCoinFlipModal();
   if(netRole==='p1'){
-    // host decides who goes first and shows the choice modal
-    showFirstTurnModalNet();
+    document.getElementById('coinflip-status').textContent='동전을 던지는 중...';
+    setTimeout(runHostCoinFlipResult, 1500);
   } else {
-    setRoomStatus('상대가 선공을 정하는 중입니다...');
+    document.getElementById('coinflip-status').textContent='상대가 동전을 던지는 중...';
   }
+}
+function showCoinFlipModal(){
+  document.getElementById('modal-coinflip').classList.remove('hidden');
+  document.getElementById('coin-visual').classList.add('spinning');
+}
+function hideCoinFlipModal(){
+  document.getElementById('modal-coinflip').classList.add('hidden');
+  document.getElementById('coin-visual').classList.remove('spinning');
+}
+function runHostCoinFlipResult(){
+  const result = Math.random()<0.5 ? 'mine' : 'theirs';
+  document.getElementById('coin-visual').classList.remove('spinning');
+  document.getElementById('coinflip-status').textContent = result==='mine' ? '내가 선공입니다!' : '상대가 선공입니다!';
+  setTimeout(()=>{
+    hideCoinFlipModal();
+    netGameStarted=true;
+    netSend({type:'start', firstTurn:result});
+    beginGame(result==='mine'? HUMAN : AI, netOpponentReadyBoard);
+  }, 1200);
 }
 
 let currentLang='ko';
@@ -1248,9 +1282,6 @@ function cleanupNet(){
   netEnabled=false; netRole=null; netRoomCode=null;
   netReadySent=false; netOpponentReadyBoard=null; netGameStarted=false;
 }
-function showFirstTurnModalNet(){
-  document.getElementById('modal-firstturn').classList.remove('hidden');
-}
 
 function applyLanguage(lang){
   currentLang=lang;
@@ -1259,7 +1290,6 @@ function applyLanguage(lang){
   document.getElementById('lang-btn-ko').classList.toggle('active', lang==='ko');
   document.getElementById('lang-btn-en').classList.toggle('active', lang==='en');
 
-  document.getElementById('subtitle-text').textContent = t.subtitle;
   document.getElementById('title-hint').innerHTML = t.titleHint;
   document.getElementById('btn-start').textContent = t.btnPrepare;
   document.getElementById('btn-help-title').textContent = t.btnRules;
@@ -1327,22 +1357,10 @@ document.getElementById('btn-confirm').addEventListener('click', ()=>{
 });
 document.getElementById('btn-first-human').addEventListener('click', ()=>{
   document.getElementById('modal-firstturn').classList.add('hidden');
-  if(netEnabled){
-    netGameStarted=true;
-    netSend({type:'start', firstTurn:'mine'});
-    beginGame(HUMAN, netOpponentReadyBoard);
-    return;
-  }
   beginGame(HUMAN);
 });
 document.getElementById('btn-first-ai').addEventListener('click', ()=>{
   document.getElementById('modal-firstturn').classList.add('hidden');
-  if(netEnabled){
-    netGameStarted=true;
-    netSend({type:'start', firstTurn:'theirs'});
-    beginGame(AI, netOpponentReadyBoard);
-    return;
-  }
   beginGame(AI);
 });
 document.getElementById('btn-restart').addEventListener('click', ()=>{

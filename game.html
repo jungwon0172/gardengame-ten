@@ -688,9 +688,9 @@ function freshBoard(){
 let idCounter=1;
 function makePieceSet(owner){
   const arr=[];
-  for(let v=1; v<=10; v++){ arr.push({id:idCounter++, owner, type:'num', value:v, row:-1,col:-1, alive:true, revealed: owner===HUMAN}); }
-  for(let i=0;i<3;i++){ arr.push({id:idCounter++, owner, type:'mine', value:null, row:-1,col:-1, alive:true, revealed: owner===HUMAN}); }
-  arr.push({id:idCounter++, owner, type:'king', value:null, row:-1,col:-1, alive:true, revealed: owner===HUMAN});
+  for(let v=1; v<=10; v++){ arr.push({id:idCounter++, owner, type:'num', value:v, row:-1,col:-1, alive:true, revealed:false}); }
+  for(let i=0;i<3;i++){ arr.push({id:idCounter++, owner, type:'mine', value:null, row:-1,col:-1, alive:true, revealed:false}); }
+  arr.push({id:idCounter++, owner, type:'king', value:null, row:-1,col:-1, alive:true, revealed:false});
   return arr;
 }
 

@@ -156,19 +156,11 @@
     transition:transform .15s;
   }
   .piece.owner-human{background:var(--human-fill);border:2px solid var(--human-accent);color:var(--human-border);}
-  .piece.owner-human.exposed::before{
-    content:"👁";position:absolute;top:-8px;right:-6px;font-size:11px;
-    background:var(--muted);border-radius:50%;width:16px;height:16px;
-    display:flex;align-items:center;justify-content:center;line-height:1;
-    box-shadow:0 0 0 1.5px #fff;
-  }
-  .piece.owner-ai.revealed{
-    background:var(--ai-fill);border:2px solid var(--ai-accent);color:var(--ai-border);
-    box-shadow:0 0 0 2px rgba(63,143,95,0.35);
-  }
+  .piece.owner-ai.revealed{background:var(--ai-fill);border:2px solid var(--ai-accent);color:var(--ai-border);}
+  .piece.owner-human.exposed::before,
   .piece.owner-ai.revealed::before{
     content:"👁";position:absolute;top:-8px;right:-6px;font-size:11px;
-    background:var(--ok);border-radius:50%;width:16px;height:16px;
+    background:var(--gold);border-radius:50%;width:16px;height:16px;
     display:flex;align-items:center;justify-content:center;line-height:1;
     box-shadow:0 0 0 1.5px #fff;
   }
@@ -585,7 +577,7 @@ const I18N={
       <h3>이동</h3>
       말은 좌우로 1칸, 대각선 앞으로 1칸, 정면으로 1~2칸(점프 불가) 이동할 수 있습니다. 뒤로는 이동할 수 없고, 이미 말이 있는 칸에는 들어갈 수 없습니다. 지뢰는 이동할 수 없습니다.
       <h3>대결</h3>
-      이동 후 상대 말과 상하좌우로 맞닿으면 즉시 대결이 벌어집니다. 두 수의 합이 10 미만이면 <b>낮은 수</b>가, 10 이상이면 <b>높은 수</b>가 승리합니다(단, 두 수가 같으면 둘 다 제거). 지뢰와 부딪히면 무조건 양쪽 모두 제거되며, 왕은 전투 능력이 없어 어떤 말과 부딪혀도 제거됩니다(왕 vs 왕은 무효). 한 번 대결에 참여한 말은 정체가 공개되며, 보드 위에서 상대 말은 <b>초록 눈 아이콘</b>(공개됨) / <b>물음표+빗금</b>(미공개)으로, 내 말 중 상대에게 이미 들킨 말은 <b>눈 아이콘</b>으로 표시됩니다.
+      이동 후 상대 말과 상하좌우로 맞닿으면 즉시 대결이 벌어집니다. 두 수의 합이 10 미만이면 <b>낮은 수</b>가, 10 이상이면 <b>높은 수</b>가 승리합니다(단, 두 수가 같으면 둘 다 제거). 지뢰와 부딪히면 무조건 양쪽 모두 제거되며, 왕은 전투 능력이 없어 어떤 말과 부딪혀도 제거됩니다(왕 vs 왕은 무효). 한 번 대결에 참여한 말은 정체가 공개되며, 공개된 말에는 <b>눈 아이콘</b>이 표시됩니다(아직 공개되지 않은 상대 말은 물음표+빗금 무늬로 표시).
       <h3>마이너스 라인</h3>
       보드에는 붉은 점선으로 표시된 두 개의 세로 경계선이 있습니다(왼쪽에서 2-3번째 칸 사이, 4-5번째 칸 사이). 이 경계선을 사이에 두고 <b>좌우로</b> 맞닿아 대결이 벌어지면, 합이 아니라 <b>큰 수에서 작은 수를 뺀 차이</b>로 승부를 가리되 <b>작은 수를 가진 쪽이 승리</b>합니다(큰 수가 패배). 위아래로 맞닿는 대결이나, 다른 위치에서의 좌우 대결에는 영향을 주지 않습니다. 그래서 맨 끝 줄(1열/6열)에 말을 붙여 정면으로만 전진시키면 마이너스 대결을 거의 피할 수 있습니다.
       <h3>부활</h3>
@@ -647,7 +639,7 @@ const I18N={
       <h3>Movement</h3>
       A piece may move 1 square left or right, 1 square diagonally forward, or 1-2 squares straight forward (no jumping). Moving backward is never allowed, and you can't move onto a square that's already occupied. Mines cannot move at all.
       <h3>Combat</h3>
-      After a move, if your piece ends up orthogonally adjacent (up/down/left/right) to an enemy piece, a battle happens immediately. If the two values add up to less than 10, the <b>lower</b> number wins; if the sum is 10 or more, the <b>higher</b> number wins (if both values are equal, both pieces are removed). Touching a mine destroys both pieces regardless of value. The King has no combat power and is removed by contact with any piece (King vs King has no effect). Once a piece has fought, its identity is revealed: enemy pieces show a <b>green eye badge</b> (revealed) or a <b>hatched "?"</b> (still hidden), and any of your own pieces the opponent has already seen show an <b>eye badge</b> too.
+      After a move, if your piece ends up orthogonally adjacent (up/down/left/right) to an enemy piece, a battle happens immediately. If the two values add up to less than 10, the <b>lower</b> number wins; if the sum is 10 or more, the <b>higher</b> number wins (if both values are equal, both pieces are removed). Touching a mine destroys both pieces regardless of value. The King has no combat power and is removed by contact with any piece (King vs King has no effect). Once a piece has fought, its identity is revealed and marked with an <b>eye badge</b> (a hidden enemy piece instead shows a hatched "?").
       <h3>Minus Lines</h3>
       The board has two dashed red vertical boundary lines (between the 2nd-3rd columns, and between the 4th-5th columns from the left). If a battle happens <b>sideways</b> across one of these lines, the result is decided by the <b>difference</b> (higher minus lower) instead of the sum — but the <b>smaller number wins</b> (the larger number loses). Vertical battles, or sideways battles elsewhere on the board, are unaffected. That's why advancing straight up the outer columns (column 1 or 6) lets you mostly avoid minus battles.
       <h3>Revival</h3>

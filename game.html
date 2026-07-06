@@ -581,7 +581,7 @@ const I18N={
       <h3>마이너스 라인</h3>
       보드에는 붉은 점선으로 표시된 두 개의 세로 경계선이 있습니다(왼쪽에서 2-3번째 칸 사이, 4-5번째 칸 사이). 이 경계선을 사이에 두고 <b>좌우로</b> 맞닿아 대결이 벌어지면, 합이 아니라 <b>큰 수에서 작은 수를 뺀 차이</b>로 승부를 가리되 <b>작은 수를 가진 쪽이 승리</b>합니다(큰 수가 패배). 위아래로 맞닿는 대결이나, 다른 위치에서의 좌우 대결에는 영향을 주지 않습니다. 그래서 맨 끝 줄(1열/6열)에 말을 붙여 정면으로만 전진시키면 마이너스 대결을 거의 피할 수 있습니다.
       <h3>부활</h3>
-      왕이 아닌 말이 상대 진영 맨 끝줄까지 살아서 도달하면, 그 말은 그대로 살아있고 추가로 지금까지 제거된 내 말 중 하나를 골라 공개된 상태로 부활시켜 내 진영 안 원하는 빈 칸에 직접 배치할 수 있습니다.
+      왕이 아닌 말이 상대 진영 맨 끝줄까지 살아서 도달하면, 그 말은 그대로 살아있고 추가로 지금까지 제거된 내 말 중 하나를 골라 공개된 상태로 부활시켜 내 진영 맨 끝줄의 원하는 칸에 배치할 수 있습니다.
       <h3>제한시간</h3>
       한 턴에 60초의 제한시간이 있으며, 시간 안에 말을 움직이지 못하면 패배합니다.
       <h3>친구와 온라인 대전 (베타)</h3>
@@ -643,7 +643,7 @@ const I18N={
       <h3>Minus Lines</h3>
       The board has two dashed red vertical boundary lines (between the 2nd-3rd columns, and between the 4th-5th columns from the left). If a battle happens <b>sideways</b> across one of these lines, the result is decided by the <b>difference</b> (higher minus lower) instead of the sum — but the <b>smaller number wins</b> (the larger number loses). Vertical battles, or sideways battles elsewhere on the board, are unaffected. That's why advancing straight up the outer columns (column 1 or 6) lets you mostly avoid minus battles.
       <h3>Revival</h3>
-      If a non-King piece survives all the way to the enemy's back row, it stays right where it is, and in addition you may choose one of your previously captured pieces to bring back — it returns face-up, and you pick any empty square in your own zone to place it.
+      If a non-King piece survives all the way to the enemy's back row, it stays right where it is, and in addition you may choose one of your previously captured pieces to bring back — it returns face-up, and you pick which square of your own back row to place it on.
       <h3>Time Limit</h3>
       Each turn has a 60-second limit. Failing to move in time results in a loss.
       <h3>Note</h3>
@@ -1034,6 +1034,7 @@ function reviveDeadPiece(owner, forcedDesc){
   });
 }
 
+function ownBackRow(owner){ return owner===HUMAN? 8 : 0; }
 function firstEmptyZoneCell(owner){
   const zoneRow = owner===HUMAN? 8 : 0;
   for(let c=0;c<COLS;c++){ if(!board[zoneRow][c]) return [zoneRow,c]; }
@@ -1046,13 +1047,13 @@ function firstEmptyZoneCell(owner){
 function promptRevivalPlacement(owner, callback){
   placementPicker = {owner, callback};
   const hint=document.getElementById('placement-hint');
-  hint.textContent = '부활시킬 위치를 내 진영에서 선택하세요';
+  hint.textContent = '부활시킬 위치를 내 진영 맨 끝줄에서 선택하세요';
   hint.classList.remove('hidden');
   renderGame();
 }
 
 function placeRevivedAt(owner, revived, r, c){
-  if(r==null || c==null || !ownZone(owner).includes(r) || board[r][c]){
+  if(r==null || c==null || r!==ownBackRow(owner) || board[r][c]){
     const cell=firstEmptyZoneCell(owner);
     if(!cell) return;
     r=cell[0]; c=cell[1];
@@ -1203,7 +1204,7 @@ function renderGame(){
       cell.className='cell '+zoneClass(r);
       if(state.selected && state.selected.row===r && state.selected.col===c) cell.classList.add('selected-cell');
       if(legalTargets.some(m=>m.row===r&&m.col===c)) cell.classList.add('selectable');
-      if(placementPicker && ownZone(placementPicker.owner).includes(r) && !board[r][c]) cell.classList.add('placeable');
+      if(placementPicker && r===ownBackRow(placementPicker.owner) && !board[r][c]) cell.classList.add('placeable');
       const lm=state.lastMove;
       if(lm.human){
         if(lm.human.fromR===r && lm.human.fromC===c) cell.classList.add('trace-human-from');
@@ -1275,7 +1276,7 @@ function fillGraveyard(containerId, list){
 function onGameCellClick(r,c){
   if(placementPicker){
     const {owner, callback} = placementPicker;
-    if(ownZone(owner).includes(r) && !board[r][c]){
+    if(r===ownBackRow(owner) && !board[r][c]){
       placementPicker=null;
       document.getElementById('placement-hint').classList.add('hidden');
       renderGame();
